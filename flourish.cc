@@ -32,18 +32,26 @@ int main(int argc, char *argv[]) {
             for (auto& inputChunk : parsedInput) {
                 //cout << inputChunk << endl;
             }
+            // check for environment variables
+            for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks
+                if (parsedInput[i][0] == '$') { // if the second input chunk is a $VARIABLE
+                    parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
+                    if (getenv(parsedInput[i].c_str()) != NULL) {
+                        parsedInput[i] = getenv(parsedInput[i].c_str());
+                    }
+                    else {
+                        parsedInput.erase(parsedInput.begin() + i);
+                    }
+                }
+            }
             if (parsedInput[0] == "cd") { // if cd command, chdir
                 if  (chdir(parsedInput[1].c_str()) == -1) {
                     printMessage(parsedInput[0], 1);
                 }
             }
+            // else if = assignment
+                // putenv
             else {
-                if (parsedInput.size() > 1) { // if there's more than one input chunk
-                    if (parsedInput[1][0] == '$') { // if the second input chunk is a $VARIABLE
-                        parsedInput[1] = parsedInput[1].substr(1, parsedInput[1].length() - 1);
-                        parsedInput[1] = getenv(parsedInput[1].c_str());
-                    }
-                }
                 switch (int id = fork()) {
                     case -1: { // failed fork
                         cout << "nop" << endl;
@@ -51,13 +59,22 @@ int main(int argc, char *argv[]) {
                         
                     }
                     case 0: { // child
-                        // exec
+                        // dup must happen here
+                        // if ">"
+                            // dup2
+                            // remove rest from the arg list
+                        // if "<"
+                            // dup2
+                            // remove rest from the arg list
+                        
+                        // transfer everything to vector of char*
                         vector<char*> cParsedInput;
                         cParsedInput.reserve(parsedInput.size());
                         for(size_t i = 0; i < parsedInput.size(); ++i)
                             cParsedInput.push_back(const_cast<char*>(parsedInput[i].c_str()));
                         cParsedInput.push_back(NULL);
                         
+                        //exec
                         execIt(&cParsedInput[0]);
                         // failed exec
                         printMessage(parsedInput[0], 0);
