@@ -44,13 +44,13 @@ int main(int argc, char *argv[]) {
                     }
                     case 0: { // child
                         // exec
-                        int numInputChunks = parsedInput.size();
-                        char *parsedInputArray[15];
-                        for (int i = 0; i < parsedInput.size() - 1; i++) {
-                            strcpy(parsedInputArray[i], parsedInput[i].c_str());
-                        }
-                        parsedInputArray[parsedInput.size()] = NULL;
-                        execIt(parsedInputArray);
+                        vector<char*> cParsedInput;
+                        cParsedInput.reserve(parsedInput.size());
+                        for(size_t i = 0; i < parsedInput.size(); ++i)
+                            cParsedInput.push_back(const_cast<char*>(parsedInput[i].c_str()));
+                        cParsedInput.push_back(NULL);
+                        
+                        execIt(&cParsedInput[0]);
                         // failed exec
                         break;
                     }
