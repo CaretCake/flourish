@@ -14,8 +14,8 @@ using namespace std;
 
 
 void parseInput(string inputString, vector<string> &parsedInput);
+void printMessage(string msg, int type);
 void execIt(char** parsedInput);
-//char *stringVecToCharArr (vector<string> parsedInputVector, char * &parsedInputArray);
 
 int main(int argc, char *argv[]) {
     char* buf;
@@ -33,7 +33,9 @@ int main(int argc, char *argv[]) {
                 //cout << inputChunk << endl;
             }
             if (parsedInput[0] == "cd") { // if cd command, chdir
-                cout << "changing directory" << endl;
+                if  (chdir(parsedInput[1].c_str()) == -1) {
+                    printMessage(parsedInput[0], 1);
+                }
             }
             else {
                 switch (int id = fork()) {
@@ -52,6 +54,7 @@ int main(int argc, char *argv[]) {
                         
                         execIt(&cParsedInput[0]);
                         // failed exec
+                        printMessage(parsedInput[0], 0);
                         break;
                     }
                     default: { // parent
@@ -73,6 +76,19 @@ void parseInput(string inputString, vector<string> &parsedInput) {
     }
 }
 
+void printMessage(string msg, int type) {
+    switch(type) {
+        case 0: { // bad command
+            cout << msg << ": command not found" << endl;
+            break;
+        }
+        case 1: { // bad chdir
+            cout << msg << ": no such directory" << endl;
+            break;
+        }
+    }
+}
+
 void execIt(char** parsedInput) {
     // attempt to execv on input for explicit file path
     execv(parsedInput[0], parsedInput);
@@ -82,15 +98,6 @@ void execIt(char** parsedInput) {
     istringstream istream(path);
     string token;
     while (getline(istream, token, ':')) {
-        cout << parsedInput << endl;
         execv((token + "/" + parsedInput[0]).c_str(), parsedInput);
     }
 }
-
-/*char *stringVecToCharArr (vector<string> parsedInputVector, char ** &parsedInputArray) {
-    for(size_t i = 0; i < parsedInputVector.size(); i++){
-        parsedInputArray[i] = new char[parsedInputVector[i].size() + 1];
-        strcpy(parsedInputArray[i], parsedInputVector[i].c_str());
-    }
-    return parsedInputArray;
-}*/
