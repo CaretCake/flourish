@@ -38,6 +38,12 @@ int main(int argc, char *argv[]) {
                 }
             }
             else {
+                if (parsedInput.size() > 1) { // if there's more than one input chunk
+                    if (parsedInput[1][0] == '$') { // if the second input chunk is a $VARIABLE
+                        parsedInput[1] = parsedInput[1].substr(1, parsedInput[1].length() - 1);
+                        parsedInput[1] = getenv(parsedInput[1].c_str());
+                    }
+                }
                 switch (int id = fork()) {
                     case -1: { // failed fork
                         cout << "nop" << endl;
@@ -92,6 +98,7 @@ void printMessage(string msg, int type) {
 void execIt(char** parsedInput) {
     // attempt to execv on input for explicit file path
     execv(parsedInput[0], parsedInput);
+    
     // attempt to exec with all possible paths
     string path = getenv("PATH");
     path += ": ";
