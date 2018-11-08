@@ -6,6 +6,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <regex>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -14,13 +15,22 @@ using namespace std;
 
 
 void parseInput(string inputString, vector<string> &parsedInput);
+vector<string> splitString(char delimiter, string target);
 void printMessage(string msg, int type);
 void execIt(char** parsedInput);
+
+const char *DEFAULT_PROMPT =  ">> ";
+const char *PROMPT = "PROMPT";
 
 int main(int argc, char *argv[]) {
     char* buf;
     vector<string> parsedInput;
-    while ((buf = readline(">> ")) != nullptr) { // readline library
+    
+    if (!getenv(PROMPT)) {
+        setenv(PROMPT, DEFAULT_PROMPT, 1);
+    }
+    
+    while ((buf = readline(getenv("PROMPT"))) != nullptr) { // readline library
         parsedInput.clear();
         if (strlen(buf) > 0) {
             add_history(buf);
@@ -33,24 +43,30 @@ int main(int argc, char *argv[]) {
                 //cout << inputChunk << endl;
             }
             // check for environment variables
-            for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks
-                if (parsedInput[i][0] == '$') { // if the second input chunk is a $VARIABLE
+            for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
+                if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
                     parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
-                    if (getenv(parsedInput[i].c_str()) != NULL) {
-                        parsedInput[i] = getenv(parsedInput[i].c_str());
+                    if (getenv(parsedInput[i].c_str()) != NULL) { // check if the environment variable exists
+                        parsedInput[i] = getenv(parsedInput[i].c_str()); // if so, replace input chunk with variable value
                     }
-                    else {
+                    else { // if not erase input chunk from the command vector
                         parsedInput.erase(parsedInput.begin() + i);
                     }
                 }
+                // tilde replace here
             }
+            
             if (parsedInput[0] == "cd") { // if cd command, chdir
                 if  (chdir(parsedInput[1].c_str()) == -1) {
                     printMessage(parsedInput[0], 1);
                 }
             }
-            // else if = assignment
-                // putenv
+            else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) { // else if it's an = assignment
+                vector<string> splitAssignment = splitString('=', buf);
+                
+                // use setenv
+                setenv(splitAssignment[0].c_str(), splitAssignment[1].c_str(), 1);
+            }
             else {
                 switch (int id = fork()) {
                     case -1: { // failed fork
@@ -99,6 +115,16 @@ void parseInput(string inputString, vector<string> &parsedInput) {
     }
 }
 
+vector<string> splitString(char delimiter, string target) {
+    vector<string> splitStrings;
+    istringstream istream(target);
+    string token;
+    while (getline(istream, token, delimiter)) {
+        splitStrings.push_back(token);
+    }
+    return splitStrings;
+}
+
 void printMessage(string msg, int type) {
     switch(type) {
         case 0: { // bad command
@@ -116,12 +142,8 @@ void execIt(char** parsedInput) {
     // attempt to execv on input for explicit file path
     execv(parsedInput[0], parsedInput);
     
-    // attempt to exec with all possible paths
-    string path = getenv("PATH");
-    path += ": ";
-    istringstream istream(path);
-    string token;
-    while (getline(istream, token, ':')) {
-        execv((token + "/" + parsedInput[0]).c_str(), parsedInput);
+    vector<string> paths = splitString(':', getenv("PATH"));
+    for (const auto& path : paths) {
+        execv((path + "/" + parsedInput[0]).c_str(), parsedInput);
     }
 }
