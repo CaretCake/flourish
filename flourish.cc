@@ -53,7 +53,13 @@ int main(int argc, char *argv[]) {
                         parsedInput.erase(parsedInput.begin() + i);
                     }
                 }
-                // tilde replace here
+                int tildeReplaceLocation = parsedInput[i].find("~");
+                if (tildeReplaceLocation != string::npos) {
+                    cout << "found a ~! at: " << tildeReplaceLocation << endl;
+                    parsedInput[i].erase(tildeReplaceLocation, 1);
+                    parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
+                    cout << "now: " << parsedInput[i] << endl;
+                }
             }
             
             if (parsedInput[0] == "cd") { // if cd command, chdir
