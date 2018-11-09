@@ -42,7 +42,30 @@ int main(int argc, char *argv[]) {
             for (auto& inputChunk : parsedInput) {
                 //cout << inputChunk << endl;
             }
-            // check for environment variables
+            
+            if (regex_match(parsedInput[0], regex("(!)(.*)"))) { // if !bang at start of command, execute last command accordingly
+                
+                HISTORY_STATE *historyState = history_get_history_state ();
+                HIST_ENTRY **historyList = history_list();
+                
+                if (regex_match(parsedInput[0], regex("(!)([0-9])"))) {
+                    cout << "!number" << endl;
+                    for (int i = 0; i < historyState->length; i++) {
+                        
+                    }
+                }
+                else {
+                    cout << "!character" << endl;
+                    /*for (int i = 0; i < historyState->length; i++) {
+                        string cmd = historyList[i]->line;
+                        if (cmd[0] == parsedInput[0][1]) {
+                            parseInput(historyList[i]->line, parsedInput);
+                        }
+                    }*/
+                }
+            }
+            
+            // check for environment variables and replace them if they exist, remove from command if non existent
             for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
                 if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
                     parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
@@ -53,6 +76,7 @@ int main(int argc, char *argv[]) {
                         parsedInput.erase(parsedInput.begin() + i);
                     }
                 }
+                // check for occurences of ~ and replace any found with home directory
                 int tildeReplaceLocation = parsedInput[i].find("~");
                 if (tildeReplaceLocation != string::npos) {
                     cout << "found a ~! at: " << tildeReplaceLocation << endl;
