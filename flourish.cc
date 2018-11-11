@@ -6,6 +6,9 @@
 #include <sstream>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
 #include <regex>
 
 #include <readline/readline.h>
@@ -56,8 +59,6 @@ int main(int argc, char *argv[]) {
                     cout << buf << endl;
                 }
                 else { // it's a ![character]
-                    cout << "!character" << endl;
-                    
                     // for each in the list from back to begin
                     for (int i = historyState->length - 1; i > 0; i--) {
                         // if bangCommand == historyList[i]->line.substr(0, bangCommand.length())
@@ -97,10 +98,8 @@ int main(int argc, char *argv[]) {
                     // check for occurences of ~ and replace any found with home directory
                     int tildeReplaceLocation = parsedInput[i].find("~");
                     if (tildeReplaceLocation != string::npos) {
-                        cout << "found a ~! at: " << tildeReplaceLocation << endl;
                         parsedInput[i].erase(tildeReplaceLocation, 1);
                         parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
-                        cout << "now: " << parsedInput[i] << endl;
                     }
                 }
                 
@@ -124,12 +123,28 @@ int main(int argc, char *argv[]) {
                         }
                         case 0: { // child
                             // dup must happen here
-                            // if ">"
-                                // dup2
-                                // remove rest from the arg list
-                            // if "<"
-                                // dup2
-                                // remove rest from the arg list
+                            if (parsedInput.size() >= 3) {
+                                
+                                for (int i = 1; i < parsedInput.size(); i++) {
+                                    //cout << inputChunk << endl;
+                                    if (parsedInput[i] == ">") {
+                                        int fd = open(parsedInput[i+1].c_str(), O_RDWR | O_CREAT, 0660);
+                                        parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
+                                        cout << parsedInput[0] << endl;
+                                        // dup2
+                                        dup2(fd, 1);
+                                        // remove rest from the arg list
+                                    }
+                                    else if (parsedInput[i] == "<") {
+                                        int fd = open(parsedInput[i+1].c_str(), O_RDONLY);
+                                        parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
+                                        cout << parsedInput[0] << endl;
+                                        // dup2
+                                        dup2(fd, 0);
+                                        // remove rest from the arg list
+                                    }
+                                }
+                            }
                             
                             // transfer everything to vector of char*
                             vector<char*> cParsedInput;
@@ -192,6 +207,8 @@ void printMessage(string msg, int type) {
 }
 
 void execIt(char** parsedInput) {
+    cout << "execing!" << endl;
+    
     // attempt to execv on input for explicit file path
     execv(parsedInput[0], parsedInput);
     
