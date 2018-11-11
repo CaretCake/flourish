@@ -10,13 +10,14 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <regex>
+#include <signal.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
 
 using namespace std;
 
-
+void ctrlC(int s);
 void parseInput(string inputString, vector<string> &parsedInput);
 vector<string> splitString(char delimiter, string target);
 void printMessage(string msg, int type);
@@ -24,11 +25,14 @@ void execIt(char** parsedInput);
 
 const char *DEFAULT_PROMPT =  ">> ";
 const char *PROMPT = "PROMPT";
+const string WELCOME_MESSAGE = "Welcome to FlouriSH!\nType 'EXIT' to quit.";
 
 int main(int argc, char *argv[]) {
     char* buf;
     vector<string> parsedInput;
     
+    cout << WELCOME_MESSAGE << endl;
+    signal(SIGINT, ctrlC);
     if (!getenv(PROMPT)) {
         setenv(PROMPT, DEFAULT_PROMPT, 1);
     }
@@ -83,6 +87,9 @@ int main(int argc, char *argv[]) {
                 for (auto& inputChunk : parsedInput) {
                     //cout << inputChunk << endl;
                 }
+                if (parsedInput[0] == "EXIT") {
+                    exit(0);
+                }
                 
                 // check for environment variables and replace them if they exist, remove from command if non existent
                 for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
@@ -130,7 +137,7 @@ int main(int argc, char *argv[]) {
                                     if (parsedInput[i] == ">") {
                                         int fd = open(parsedInput[i+1].c_str(), O_RDWR | O_CREAT, 0660);
                                         parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
-                                        cout << parsedInput[0] << endl;
+                                        //cout << parsedInput[0] << endl;
                                         // dup2
                                         dup2(fd, 1);
                                         // remove rest from the arg list
@@ -138,7 +145,7 @@ int main(int argc, char *argv[]) {
                                     else if (parsedInput[i] == "<") {
                                         int fd = open(parsedInput[i+1].c_str(), O_RDONLY);
                                         parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
-                                        cout << parsedInput[0] << endl;
+                                        //cout << parsedInput[0] << endl;
                                         // dup2
                                         dup2(fd, 0);
                                         // remove rest from the arg list
@@ -169,6 +176,10 @@ int main(int argc, char *argv[]) {
             free(buf);
         }
     }
+}
+
+void ctrlC(int s) {
+    //cout << "ye" << endl;
 }
 
 void parseInput(string inputString, vector<string> &parsedInput) {
