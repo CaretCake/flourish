@@ -38,137 +38,144 @@ int main(int argc, char *argv[]) {
     }
     
     while ((buf = readline(getenv("PROMPT"))) != nullptr) { // readline library
-        parsedInput.clear();
         if (strlen(buf) > 0) {
-        
-            bool commandOK = true;
             
-            if (regex_match(buf, regex("(!)(.*)"))) { // if !bang at start of input, execute last command accordingly
+            vector<string> splitCommands = splitString(';', buf);
+            /*for (string command : splitCommands) {
+                cout << "'" << command << "'" << endl;
+            }*/
+            for (string command : splitCommands) {
+                parsedInput.clear();
+                strcpy(buf, command.c_str());
+                bool commandOK = true;
                 
-                // get history
-                HISTORY_STATE *historyState = history_get_history_state ();
-                HIST_ENTRY **historyList = history_list();
-                
-                // split ! from string
-                string bangCommand = splitString('!', buf)[1];
-                
-                if (regex_match(bangCommand, regex("([0-9]*)"))) { // if ![#]
-                    int commandsToGoBack = stoi(bangCommand);
-                    int historyListPos = historyState->length - 1;
-                    if (commandsToGoBack > historyListPos+1) {
-                        printMessage(buf, 2);
-                        commandOK = false;
-                    }
-                    buf = historyList[historyListPos - commandsToGoBack]->line;
-                    cout << buf << endl;
-                }
-                else { // it's a ![character]
-                    // for each in the list from back to begin
-                    for (int i = historyState->length - 1; i > 0; i--) {
-                        // if bangCommand == historyList[i]->line.substr(0, bangCommand.length())
-                        string line = historyList[i]->line;
-                        if (bangCommand == line.substr(0, bangCommand.length())) {
-                            //change it
-                            buf = historyList[i]->line;
-                            cout << buf << endl;
-                            break;
-                        }
-                        if (i == 0) {
+                if (regex_match(buf, regex("(!)(.*)"))) { // if !bang at start of input, execute last command accordingly
+                    
+                    // get history
+                    HISTORY_STATE *historyState = history_get_history_state ();
+                    HIST_ENTRY **historyList = history_list();
+                    
+                    // split ! from string
+                    string bangCommand = splitString('!', buf)[1];
+                    
+                    if (regex_match(bangCommand, regex("([0-9]*)"))) { // if ![#]
+                        int commandsToGoBack = stoi(bangCommand);
+                        int historyListPos = historyState->length - 1;
+                        if (commandsToGoBack > historyListPos+1) {
+                            printMessage(buf, 2);
                             commandOK = false;
                         }
+                        buf = historyList[historyListPos - commandsToGoBack]->line;
+                        cout << buf << endl;
                     }
-                }
-            }
-            
-            if (commandOK) {
-                add_history(buf);
-                // parse input for arguments
-                parseInput(buf, parsedInput);
-                for (auto& inputChunk : parsedInput) {
-                    //cout << inputChunk << endl;
-                }
-                if (parsedInput[0] == "EXIT") {
-                    exit(0);
-                }
-                
-                // check for environment variables and replace them if they exist, remove from command if non existent
-                for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
-                    if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
-                        parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
-                        if (getenv(parsedInput[i].c_str()) != NULL) { // check if the environment variable exists
-                            parsedInput[i] = getenv(parsedInput[i].c_str()); // if so, replace input chunk with variable value
+                    else { // it's a ![character]
+                        // for each in the list from back to begin
+                        for (int i = historyState->length - 1; i > 0; i--) {
+                            // if bangCommand == historyList[i]->line.substr(0, bangCommand.length())
+                            string line = historyList[i]->line;
+                            if (bangCommand == line.substr(0, bangCommand.length())) {
+                                //change it
+                                buf = historyList[i]->line;
+                                cout << buf << endl;
+                                break;
+                            }
+                            if (i == 0) {
+                                commandOK = false;
+                            }
                         }
-                        else { // if not erase input chunk from the command vector
-                            parsedInput.erase(parsedInput.begin() + i);
-                        }
-                    }
-                    // check for occurences of ~ and replace any found with home directory
-                    int tildeReplaceLocation = parsedInput[i].find("~");
-                    if (tildeReplaceLocation != string::npos) {
-                        parsedInput[i].erase(tildeReplaceLocation, 1);
-                        parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
                     }
                 }
                 
-                if (parsedInput[0] == "cd") { // if cd command, chdir
-                    if  (chdir(parsedInput[1].c_str()) == -1) {
-                        printMessage(parsedInput[0], 1);
+                if (commandOK) {
+                    add_history(buf);
+                    // parse input for arguments
+                    parseInput(buf, parsedInput);
+                    for (auto& inputChunk : parsedInput) {
+                        //cout << inputChunk << endl;
                     }
-                }
-                else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) { // else if it's an = assignment
-                    vector<string> splitAssignment = splitString('=', buf);
+                    if (parsedInput[0] == "EXIT") {
+                        exit(0);
+                    }
                     
-                    // use setenv
-                    setenv(splitAssignment[0].c_str(), splitAssignment[1].c_str(), 1);
-                }
-                else {
-                    switch (int id = fork()) {
-                        case -1: { // failed fork
-                            cout << "nop" << endl;
-                            break;
-                            
+                    // check for environment variables and replace them if they exist, remove from command if non existent
+                    for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
+                        if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
+                            parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
+                            if (getenv(parsedInput[i].c_str()) != NULL) { // check if the environment variable exists
+                                parsedInput[i] = getenv(parsedInput[i].c_str()); // if so, replace input chunk with variable value
+                            }
+                            else { // if not erase input chunk from the command vector
+                                parsedInput.erase(parsedInput.begin() + i);
+                            }
                         }
-                        case 0: { // child
-                            // dup must happen here
-                            if (parsedInput.size() >= 3) {
+                        // check for occurences of ~ and replace any found with home directory
+                        int tildeReplaceLocation = parsedInput[i].find("~");
+                        if (tildeReplaceLocation != string::npos) {
+                            parsedInput[i].erase(tildeReplaceLocation, 1);
+                            parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
+                        }
+                    }
+                    
+                    if (parsedInput[0] == "cd") { // if cd command, chdir
+                        if  (chdir(parsedInput[1].c_str()) == -1) {
+                            printMessage(parsedInput[0], 1);
+                        }
+                    }
+                    else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) { // else if it's an = assignment
+                        vector<string> splitAssignment = splitString('=', buf);
+                        
+                        // use setenv
+                        setenv(splitAssignment[0].c_str(), splitAssignment[1].c_str(), 1);
+                    }
+                    else {
+                        switch (int id = fork()) {
+                            case -1: { // failed fork
+                                cout << "nop" << endl;
+                                break;
                                 
-                                for (int i = 1; i < parsedInput.size(); i++) {
-                                    //cout << inputChunk << endl;
-                                    if (parsedInput[i] == ">") {
-                                        int fd = open(parsedInput[i+1].c_str(), O_RDWR | O_CREAT, 0660);
-                                        parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
-                                        //cout << parsedInput[0] << endl;
-                                        // dup2
-                                        dup2(fd, 1);
-                                        // remove rest from the arg list
-                                    }
-                                    else if (parsedInput[i] == "<") {
-                                        int fd = open(parsedInput[i+1].c_str(), O_RDONLY);
-                                        parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
-                                        //cout << parsedInput[0] << endl;
-                                        // dup2
-                                        dup2(fd, 0);
-                                        // remove rest from the arg list
+                            }
+                            case 0: { // child
+                                // dup must happen here
+                                if (parsedInput.size() >= 3) {
+                                    
+                                    for (int i = 1; i < parsedInput.size(); i++) {
+                                        //cout << inputChunk << endl;
+                                        if (parsedInput[i] == ">") {
+                                            int fd = open(parsedInput[i+1].c_str(), O_RDWR | O_CREAT, 0660);
+                                            parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
+                                            //cout << parsedInput[0] << endl;
+                                            // dup2
+                                            dup2(fd, 1);
+                                            // remove rest from the arg list
+                                        }
+                                        else if (parsedInput[i] == "<") {
+                                            int fd = open(parsedInput[i+1].c_str(), O_RDONLY);
+                                            parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
+                                            //cout << parsedInput[0] << endl;
+                                            // dup2
+                                            dup2(fd, 0);
+                                            // remove rest from the arg list
+                                        }
                                     }
                                 }
+                                
+                                // transfer everything to vector of char*
+                                vector<char*> cParsedInput;
+                                cParsedInput.reserve(parsedInput.size());
+                                for(size_t i = 0; i < parsedInput.size(); ++i)
+                                    cParsedInput.push_back(const_cast<char*>(parsedInput[i].c_str()));
+                                cParsedInput.push_back(NULL);
+                                
+                                //exec
+                                execIt(&cParsedInput[0]);
+                                // failed exec
+                                printMessage(parsedInput[0], 0);
+                                break;
                             }
-                            
-                            // transfer everything to vector of char*
-                            vector<char*> cParsedInput;
-                            cParsedInput.reserve(parsedInput.size());
-                            for(size_t i = 0; i < parsedInput.size(); ++i)
-                                cParsedInput.push_back(const_cast<char*>(parsedInput[i].c_str()));
-                            cParsedInput.push_back(NULL);
-                            
-                            //exec
-                            execIt(&cParsedInput[0]);
-                            // failed exec
-                            printMessage(parsedInput[0], 0);
-                            break;
-                        }
-                        default: { // parent
-                            waitpid(-1, NULL, 0);
-                            break;
+                            default: { // parent
+                                waitpid(-1, NULL, 0);
+                                break;
+                            }
                         }
                     }
                 }
@@ -218,11 +225,10 @@ void printMessage(string msg, int type) {
 }
 
 void execIt(char** parsedInput) {
-    cout << "execing!" << endl;
-    
     // attempt to execv on input for explicit file path
     execv(parsedInput[0], parsedInput);
     
+    // attempt to execv on all possible paths in PATH environment variable
     vector<string> paths = splitString(':', getenv("PATH"));
     for (const auto& path : paths) {
         execv((path + "/" + parsedInput[0]).c_str(), parsedInput);
