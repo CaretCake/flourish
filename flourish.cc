@@ -17,39 +17,37 @@
 
 using namespace std;
 
+void startUp();
 void ctrlC(int s);
+bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &buf);
 void parseInput(string inputString, vector<string> &parsedInput);
 vector<string> splitString(char delimiter, string target);
 void printMessage(string msg, int type);
 void execIt(char** parsedInput);
 
-const char *DEFAULT_PROMPT =  ">> ";
 const char *PROMPT = "PROMPT";
+const char *DEFAULT_PROMPT =  ">> ";
 const string WELCOME_MESSAGE = "Welcome to FlouriSH!\nType 'EXIT' to quit.";
 
 int main(int argc, char *argv[]) {
     char* buf;
     vector<string> parsedInput;
     
-    cout << WELCOME_MESSAGE << endl;
-    signal(SIGINT, ctrlC);
-    if (!getenv(PROMPT)) {
-        setenv(PROMPT, DEFAULT_PROMPT, 1);
-    }
+    startUp();
     
     while ((buf = readline(getenv("PROMPT"))) != nullptr) { // readline library
         if (strlen(buf) > 0) {
             
             vector<string> splitCommands = splitString(';', buf);
-            /*for (string command : splitCommands) {
-                cout << "'" << command << "'" << endl;
-            }*/
+            
             for (string command : splitCommands) {
                 parsedInput.clear();
                 strcpy(buf, command.c_str());
                 bool commandOK = true;
                 
                 if (regex_match(buf, regex("(!)(.*)"))) { // if !bang at start of input, execute last command accordingly
+                    
+                    //commandOK = bangCommandRegex(splitString('!', buf)[1], parsedInput, buf);
                     
                     // get history
                     HISTORY_STATE *historyState = history_get_history_state ();
@@ -60,18 +58,19 @@ int main(int argc, char *argv[]) {
                     
                     if (regex_match(bangCommand, regex("([0-9]*)"))) { // if ![#]
                         int commandsToGoBack = stoi(bangCommand);
-                        int historyListPos = historyState->length - 1;
-                        if (commandsToGoBack > historyListPos+1) {
+                        int historyListPos = historyState->length;
+                        if (commandsToGoBack > historyListPos) {
                             printMessage(buf, 2);
                             commandOK = false;
                         }
-                        buf = historyList[historyListPos - commandsToGoBack]->line;
-                        cout << buf << endl;
+                        else {
+                            buf = historyList[historyListPos - commandsToGoBack]->line;
+                            cout << buf << endl;
+                        }
                     }
                     else { // it's a ![character]
                         // for each in the list from back to begin
                         for (int i = historyState->length - 1; i > 0; i--) {
-                            // if bangCommand == historyList[i]->line.substr(0, bangCommand.length())
                             string line = historyList[i]->line;
                             if (bangCommand == line.substr(0, bangCommand.length())) {
                                 //change it
@@ -80,6 +79,7 @@ int main(int argc, char *argv[]) {
                                 break;
                             }
                             if (i == 0) {
+                                printMessage(buf, 2);
                                 commandOK = false;
                             }
                         }
@@ -90,11 +90,9 @@ int main(int argc, char *argv[]) {
                     add_history(buf);
                     // parse input for arguments
                     parseInput(buf, parsedInput);
-                    for (auto& inputChunk : parsedInput) {
-                        //cout << inputChunk << endl;
-                    }
-                    if (parsedInput[0] == "EXIT") {
-                        exit(0);
+                    
+                    if (regex_match(parsedInput[0], regex("([[:space:]]*)(EXIT)([[:space:]]*)"))) {
+                        return(0);
                     }
                     
                     // check for environment variables and replace them if they exist, remove from command if non existent
@@ -130,9 +128,8 @@ int main(int argc, char *argv[]) {
                     else {
                         switch (int id = fork()) {
                             case -1: { // failed fork
-                                cout << "nop" << endl;
+                                cout << "fork problems" << endl;
                                 break;
-                                
                             }
                             case 0: { // child
                                 // dup must happen here
@@ -185,8 +182,48 @@ int main(int argc, char *argv[]) {
     }
 }
 
+void startUp() {
+    cout << WELCOME_MESSAGE << endl;
+    signal(SIGINT, ctrlC);
+    if (!getenv(PROMPT)) {
+        setenv(PROMPT, DEFAULT_PROMPT, 1);
+    }
+}
+
 void ctrlC(int s) {
     //cout << "ye" << endl;
+}
+
+bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &buf) {
+    // get history
+    HISTORY_STATE *historyState = history_get_history_state ();
+    HIST_ENTRY **historyList = history_list();
+    
+    if (regex_match(bangCommand, regex("([0-9]*)"))) { // if it's !#
+        int commandsToGoBack = stoi(bangCommand);
+        int historyListPos = historyState->length - 1;
+        if (commandsToGoBack > historyListPos) { // outside of bounds of history
+            printMessage(buf, 2);
+            return false;
+        }
+        buf = historyList[historyListPos - commandsToGoBack]->line;
+        return true;
+    }
+    else { // it's a ![character]
+        // for each in the list from back to begin
+        for (int i = historyState->length - 1; i > 0; i--) { // check backward in history
+            string line = historyList[i]->line;
+            if (bangCommand == line.substr(0, bangCommand.length())) {
+                //change it
+                buf = historyList[i]->line;
+                return true;
+            }
+            if (i == 0) {
+                printMessage(buf, 2);
+                return false;
+            }
+        }
+    }
 }
 
 void parseInput(string inputString, vector<string> &parsedInput) {
