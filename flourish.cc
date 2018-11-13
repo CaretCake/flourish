@@ -19,8 +19,9 @@ using namespace std;
 
 void startUp();
 void ctrlC(int s);
-bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &buf);
 void parseInput(string inputString, vector<string> &parsedInput);
+bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &buf);
+void replaceInput(vector<string> &parsedInput);
 vector<string> splitString(char delimiter, string target);
 void printMessage(string msg, int type);
 void execIt(char** parsedInput);
@@ -38,6 +39,7 @@ int main(int argc, char *argv[]) {
     while ((buf = readline(getenv("PROMPT"))) != nullptr) { // readline library
         if (strlen(buf) > 0) {
             
+            //split on ';' characters for executing queued commands, then execute each
             vector<string> splitCommands = splitString(';', buf);
             
             for (string command : splitCommands) {
@@ -59,7 +61,9 @@ int main(int argc, char *argv[]) {
                     }
                     
                     // check for environment variables and replace them if they exist, remove from command if non existent
-                    for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
+                    replaceInput(parsedInput);
+                    
+                    /*for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
                         if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
                             parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
                             if (getenv(parsedInput[i].c_str()) != NULL) { // check if the environment variable exists
@@ -75,7 +79,7 @@ int main(int argc, char *argv[]) {
                             parsedInput[i].erase(tildeReplaceLocation, 1);
                             parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
                         }
-                    }
+                    }*/
                     
                     if (parsedInput[0] == "cd") { // if cd command, chdir
                         if  (chdir(parsedInput[1].c_str()) == -1) {
@@ -157,14 +161,22 @@ void ctrlC(int s) {
     //cout << "ye" << endl;
 }
 
+void parseInput(string inputString, vector<string> &parsedInput) {
+    istringstream istream (inputString);
+    string inputChunk;
+    while (istream >> inputChunk) {
+        parsedInput.push_back(inputChunk);
+    }
+}
+
 bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &buf) {
     // get history
     HISTORY_STATE *historyState = history_get_history_state ();
     HIST_ENTRY **historyList = history_list();
-
+    
     // split ! from string
     bangCommand = splitString('!', buf)[1];
-
+    
     if (regex_match(bangCommand, regex("([0-9]*)"))) { // if ![#]
         int commandsToGoBack = stoi(bangCommand);
         int historyListPos = historyState->length;
@@ -196,11 +208,23 @@ bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &bu
     }
 }
 
-void parseInput(string inputString, vector<string> &parsedInput) {
-    istringstream istream (inputString);
-    string inputChunk;
-    while (istream >> inputChunk) {
-        parsedInput.push_back(inputChunk);
+void replaceInput(vector<string> &parsedInput) {
+    for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
+        if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
+            parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
+            if (getenv(parsedInput[i].c_str()) != NULL) { // check if the environment variable exists
+                parsedInput[i] = getenv(parsedInput[i].c_str()); // if so, replace input chunk with variable value
+            }
+            else { // if not erase input chunk from the command vector
+                parsedInput.erase(parsedInput.begin() + i);
+            }
+        }
+        // check for occurences of ~ and replace any found with home directory
+        int tildeReplaceLocation = parsedInput[i].find("~");
+        if (tildeReplaceLocation != string::npos) {
+            parsedInput[i].erase(tildeReplaceLocation, 1);
+            parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
+        }
     }
 }
 
