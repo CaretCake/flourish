@@ -24,6 +24,7 @@ bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &bu
 void replaceInput(vector<string> &parsedInput);
 void changeDirectory(vector<string> &parsedInput);
 void setEnvironmentVariable(vector<string> &parsedInput, char* &buf);
+void fileIORedirection(vector<string> &parsedInput, int index, char direction);
 vector<string> splitString(char delimiter, string target);
 void printMessage(string msg, int type);
 void execIt(char** parsedInput);
@@ -58,6 +59,7 @@ int main(int argc, char *argv[]) {
                     // parse input for arguments
                     parseInput(buf, parsedInput);
                     
+                    //check for EXIT command
                     if (regex_match(parsedInput[0], regex("([[:space:]]*)(EXIT)([[:space:]]*)")) || parsedInput[0] == "EXIT") {
                         return(0);
                     }
@@ -65,12 +67,15 @@ int main(int argc, char *argv[]) {
                     // check for environment variables and replace them if they exist, remove from command if non existent
                     replaceInput(parsedInput);
                     
-                    if (parsedInput[0] == "cd") { // if cd command, chdir
+                    // check for a cd call
+                    if (parsedInput[0] == "cd") {
                         changeDirectory(parsedInput);
                     }
-                    else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) { // else if it's an = assignment
+                    // check for an environment variable assignment
+                    else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) {
                         setEnvironmentVariable(parsedInput, buf);
                     }
+                    // exec as normal
                     else {
                         switch (int id = fork()) {
                             case -1: { // failed fork
@@ -78,26 +83,14 @@ int main(int argc, char *argv[]) {
                                 break;
                             }
                             case 0: { // child
-                                // dup must happen here
-                                if (parsedInput.size() >= 3) {
-                                    
+                                if (parsedInput.size() >= 3) { // check size for possibility of file IO redirection
+                                    // check for file redirection
                                     for (int i = 1; i < parsedInput.size(); i++) {
-                                        //cout << inputChunk << endl;
                                         if (parsedInput[i] == ">") {
-                                            int fd = open(parsedInput[i+1].c_str(), O_RDWR | O_CREAT, 0660);
-                                            parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
-                                            //cout << parsedInput[0] << endl;
-                                            // dup2
-                                            dup2(fd, 1);
-                                            // remove rest from the arg list
+                                            fileIORedirection(parsedInput, i, '>');
                                         }
                                         else if (parsedInput[i] == "<") {
-                                            int fd = open(parsedInput[i+1].c_str(), O_RDONLY);
-                                            parsedInput.erase(parsedInput.begin() + i, parsedInput.end());
-                                            //cout << parsedInput[0] << endl;
-                                            // dup2
-                                            dup2(fd, 0);
-                                            // remove rest from the arg list
+                                            fileIORedirection(parsedInput, i, '<');
                                         }
                                     }
                                 }
@@ -111,7 +104,8 @@ int main(int argc, char *argv[]) {
                                 
                                 //exec
                                 execIt(&cParsedInput[0]);
-                                // failed exec
+                                
+                                // exec failed if we get here
                                 printMessage(parsedInput[0], 0);
                                 break;
                             }
@@ -217,6 +211,23 @@ void setEnvironmentVariable(vector<string> &parsedInput, char* &buf) {
     vector<string> splitAssignment = splitString('=', buf);
     
     setenv(splitAssignment[0].c_str(), splitAssignment[1].c_str(), 1);
+}
+
+void fileIORedirection(vector<string> &parsedInput, int index, char direction) {
+    switch (direction) {
+        case '>': {
+            int fd = open(parsedInput[index+1].c_str(), O_RDWR | O_CREAT, 0660);
+            parsedInput.erase(parsedInput.begin() + index, parsedInput.end());
+            dup2(fd, 1);
+            break;
+        }
+        case '<': {
+            int fd = open(parsedInput[index+1].c_str(), O_RDONLY);
+            parsedInput.erase(parsedInput.begin() + index, parsedInput.end());
+            dup2(fd, 0);
+            break;
+        }
+    }
 }
 
 vector<string> splitString(char delimiter, string target) {
