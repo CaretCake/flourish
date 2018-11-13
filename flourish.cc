@@ -27,7 +27,7 @@ void execIt(char** parsedInput);
 
 const char *PROMPT = "PROMPT";
 const char *DEFAULT_PROMPT =  ">> ";
-const string WELCOME_MESSAGE = "Welcome to FlouriSH!\nType 'EXIT' to quit.";
+const string WELCOME_MESSAGE = "**************************************\n*********Welcome to FlouriSH!*********\n*********Type 'EXIT' to quit.*********\n**************************************\n";
 
 int main(int argc, char *argv[]) {
     char* buf;
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
                     // parse input for arguments
                     parseInput(buf, parsedInput);
                     
-                    if (regex_match(parsedInput[0], regex("([[:space:]]*)(EXIT)([[:space:]]*)"))) {
+                    if (regex_match(parsedInput[0], regex("([[:space:]]*)(EXIT)([[:space:]]*)")) || parsedInput[0] == "EXIT") {
                         return(0);
                     }
                     
