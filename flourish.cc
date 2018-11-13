@@ -46,44 +46,7 @@ int main(int argc, char *argv[]) {
                 bool commandOK = true;
                 
                 if (regex_match(buf, regex("(!)(.*)"))) { // if !bang at start of input, execute last command accordingly
-                    
-                    //commandOK = bangCommandRegex(splitString('!', buf)[1], parsedInput, buf);
-                    
-                    // get history
-                    HISTORY_STATE *historyState = history_get_history_state ();
-                    HIST_ENTRY **historyList = history_list();
-                    
-                    // split ! from string
-                    string bangCommand = splitString('!', buf)[1];
-                    
-                    if (regex_match(bangCommand, regex("([0-9]*)"))) { // if ![#]
-                        int commandsToGoBack = stoi(bangCommand);
-                        int historyListPos = historyState->length;
-                        if (commandsToGoBack > historyListPos) {
-                            printMessage(buf, 2);
-                            commandOK = false;
-                        }
-                        else {
-                            buf = historyList[historyListPos - commandsToGoBack]->line;
-                            cout << buf << endl;
-                        }
-                    }
-                    else { // it's a ![character]
-                        // for each in the list from back to begin
-                        for (int i = historyState->length - 1; i > 0; i--) {
-                            string line = historyList[i]->line;
-                            if (bangCommand == line.substr(0, bangCommand.length())) {
-                                //change it
-                                buf = historyList[i]->line;
-                                cout << buf << endl;
-                                break;
-                            }
-                            if (i == 0) {
-                                printMessage(buf, 2);
-                                commandOK = false;
-                            }
-                        }
-                    }
+                    commandOK = bangCommandRegex(splitString('!', buf)[1], parsedInput, buf);
                 }
                 
                 if (commandOK) {
@@ -198,24 +161,31 @@ bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &bu
     // get history
     HISTORY_STATE *historyState = history_get_history_state ();
     HIST_ENTRY **historyList = history_list();
-    
-    if (regex_match(bangCommand, regex("([0-9]*)"))) { // if it's !#
+
+    // split ! from string
+    bangCommand = splitString('!', buf)[1];
+
+    if (regex_match(bangCommand, regex("([0-9]*)"))) { // if ![#]
         int commandsToGoBack = stoi(bangCommand);
-        int historyListPos = historyState->length - 1;
-        if (commandsToGoBack > historyListPos) { // outside of bounds of history
+        int historyListPos = historyState->length;
+        if (commandsToGoBack > historyListPos) {
             printMessage(buf, 2);
             return false;
         }
-        buf = historyList[historyListPos - commandsToGoBack]->line;
-        return true;
+        else {
+            buf = historyList[historyListPos - commandsToGoBack]->line;
+            cout << buf << endl;
+            return true;
+        }
     }
     else { // it's a ![character]
         // for each in the list from back to begin
-        for (int i = historyState->length - 1; i > 0; i--) { // check backward in history
+        for (int i = historyState->length - 1; i > 0; i--) {
             string line = historyList[i]->line;
             if (bangCommand == line.substr(0, bangCommand.length())) {
                 //change it
                 buf = historyList[i]->line;
+                cout << buf << endl;
                 return true;
             }
             if (i == 0) {
