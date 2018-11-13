@@ -22,6 +22,8 @@ void ctrlC(int s);
 void parseInput(string inputString, vector<string> &parsedInput);
 bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &buf);
 void replaceInput(vector<string> &parsedInput);
+void changeDirectory(vector<string> &parsedInput);
+void setEnvironmentVariable(vector<string> &parsedInput, char* &buf);
 vector<string> splitString(char delimiter, string target);
 void printMessage(string msg, int type);
 void execIt(char** parsedInput);
@@ -63,34 +65,11 @@ int main(int argc, char *argv[]) {
                     // check for environment variables and replace them if they exist, remove from command if non existent
                     replaceInput(parsedInput);
                     
-                    /*for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
-                        if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
-                            parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
-                            if (getenv(parsedInput[i].c_str()) != NULL) { // check if the environment variable exists
-                                parsedInput[i] = getenv(parsedInput[i].c_str()); // if so, replace input chunk with variable value
-                            }
-                            else { // if not erase input chunk from the command vector
-                                parsedInput.erase(parsedInput.begin() + i);
-                            }
-                        }
-                        // check for occurences of ~ and replace any found with home directory
-                        int tildeReplaceLocation = parsedInput[i].find("~");
-                        if (tildeReplaceLocation != string::npos) {
-                            parsedInput[i].erase(tildeReplaceLocation, 1);
-                            parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
-                        }
-                    }*/
-                    
                     if (parsedInput[0] == "cd") { // if cd command, chdir
-                        if  (chdir(parsedInput[1].c_str()) == -1) {
-                            printMessage(parsedInput[0], 1);
-                        }
+                        changeDirectory(parsedInput);
                     }
                     else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) { // else if it's an = assignment
-                        vector<string> splitAssignment = splitString('=', buf);
-                        
-                        // use setenv
-                        setenv(splitAssignment[0].c_str(), splitAssignment[1].c_str(), 1);
+                        setEnvironmentVariable(parsedInput, buf);
                     }
                     else {
                         switch (int id = fork()) {
@@ -226,6 +205,18 @@ void replaceInput(vector<string> &parsedInput) {
             parsedInput[i].insert(tildeReplaceLocation, getenv("HOME"));
         }
     }
+}
+
+void changeDirectory(vector<string> &parsedInput) {
+    if  (chdir(parsedInput[1].c_str()) == -1) {
+        printMessage(parsedInput[0], 1);
+    }
+}
+
+void setEnvironmentVariable(vector<string> &parsedInput, char* &buf) {
+    vector<string> splitAssignment = splitString('=', buf);
+    
+    setenv(splitAssignment[0].c_str(), splitAssignment[1].c_str(), 1);
 }
 
 vector<string> splitString(char delimiter, string target) {
