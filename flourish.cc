@@ -50,32 +50,33 @@ int main(int argc, char *argv[]) {
                 strcpy(buf, command.c_str());
                 bool commandOK = true;
                 
-                if (regex_match(buf, regex("(!)(.*)"))) { // if !bang at start of input, execute last command accordingly
+                // parse command and run the chosen previous command if it's a !bang command
+                if (regex_match(buf, regex("(!)(.*)"))) {
                     commandOK = bangCommandRegex(splitString('!', buf)[1], parsedInput, buf);
                 }
                 
                 if (commandOK) {
                     add_history(buf);
-                    // parse input for arguments
+                    
                     parseInput(buf, parsedInput);
                     
-                    //check for EXIT command
+                    // Exit the program if input is "EXIT"
                     if (regex_match(parsedInput[0], regex("([[:space:]]*)(EXIT)([[:space:]]*)")) || parsedInput[0] == "EXIT") {
-                        return(0);
+                        exit(0);
                     }
                     
-                    // check for environment variables and replace them if they exist, remove from command if non existent
+                    // replace environment variables and tilde
                     replaceInput(parsedInput);
                     
-                    // check for a cd call
+                    // change directory if it's a cd command
                     if (parsedInput[0] == "cd") {
                         changeDirectory(parsedInput);
                     }
-                    // check for an environment variable assignment
+                    // set environment variable if it's *=*
                     else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) {
                         setEnvironmentVariable(parsedInput, buf);
                     }
-                    // exec as normal
+                    // continue with normal exec
                     else {
                         switch (int id = fork()) {
                             case -1: { // failed fork
@@ -107,6 +108,7 @@ int main(int argc, char *argv[]) {
                                 
                                 // exec failed if we get here
                                 printMessage(parsedInput[0], 0);
+                                exit(0);
                                 break;
                             }
                             default: { // parent
@@ -217,12 +219,20 @@ void fileIORedirection(vector<string> &parsedInput, int index, char direction) {
     switch (direction) {
         case '>': {
             int fd = open(parsedInput[index+1].c_str(), O_RDWR | O_CREAT, 0660);
+            if (fd == -1) {
+                printMessage("open failed", 3);
+                exit(0);
+            }
             parsedInput.erase(parsedInput.begin() + index, parsedInput.end());
             dup2(fd, 1);
             break;
         }
         case '<': {
             int fd = open(parsedInput[index+1].c_str(), O_RDONLY);
+            if (fd == -1) {
+                printMessage("open failed", 3);
+                exit(0);
+            }
             parsedInput.erase(parsedInput.begin() + index, parsedInput.end());
             dup2(fd, 0);
             break;
@@ -252,6 +262,10 @@ void printMessage(string msg, int type) {
         }
         case 2: { // bad !event
             cout << "flourish: " << msg << ": event not found" << endl;
+            break;
+        }
+        case 3: { // bad file
+            cout << "flourish: " << msg << ": file not found" << endl;
             break;
         }
     }
