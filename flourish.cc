@@ -26,6 +26,12 @@ void changeDirectory(vector<string> &parsedInput);
 void setEnvironmentVariable(vector<string> &parsedInput, char* &buf);
 void fileIORedirection(vector<string> &parsedInput, int index, char direction);
 vector<string> splitString(char delimiter, string target);
+bool isBangCommand(string command);
+bool isExit(string command);
+bool isChangeDirectory(string command);
+bool isEnvVarAssignment(string command);
+bool isInputRedirection(string command);
+bool isOutputRedirection(string command);
 void printMessage(string msg, int type);
 void execIt(char** parsedInput);
 
@@ -51,7 +57,7 @@ int main(int argc, char *argv[]) {
                 bool commandOK = true;
                 
                 // parse command and run the chosen previous command if it's a !bang command
-                if (regex_match(buf, regex("(!)(.*)"))) {
+                if (isBangCommand(buf)) {
                     commandOK = bangCommandRegex(splitString('!', buf)[1], parsedInput, buf);
                 }
                 
@@ -61,7 +67,7 @@ int main(int argc, char *argv[]) {
                     parseInput(buf, parsedInput);
                     
                     // Exit the program if input is "EXIT"
-                    if (regex_match(parsedInput[0], regex("([[:space:]]*)(EXIT)([[:space:]]*)")) || parsedInput[0] == "EXIT") {
+                    if (isExit(parsedInput[0])) {
                         exit(0);
                     }
                     
@@ -69,11 +75,11 @@ int main(int argc, char *argv[]) {
                     replaceInput(parsedInput);
                     
                     // change directory if it's a cd command
-                    if (parsedInput[0] == "cd") {
+                    if (isChangeDirectory(parsedInput[0])) {
                         changeDirectory(parsedInput);
                     }
                     // set environment variable if it's *=*
-                    else if (regex_match(parsedInput[0], regex("(.*)(=)(.*)"))) {
+                    else if (isEnvVarAssignment(parsedInput[0])) {
                         setEnvironmentVariable(parsedInput, buf);
                     }
                     // continue with normal exec
@@ -87,10 +93,10 @@ int main(int argc, char *argv[]) {
                                 if (parsedInput.size() >= 3) { // check size for possibility of file IO redirection
                                     // check for file redirection
                                     for (int i = 1; i < parsedInput.size(); i++) {
-                                        if (parsedInput[i] == ">") {
+                                        if (isOutputRedirection(parsedInput[i])) {
                                             fileIORedirection(parsedInput, i, '>');
                                         }
-                                        else if (parsedInput[i] == "<") {
+                                        else if (isInputRedirection(parsedInput[i])) {
                                             fileIORedirection(parsedInput, i, '<');
                                         }
                                     }
@@ -248,6 +254,30 @@ vector<string> splitString(char delimiter, string target) {
         splitStrings.push_back(token);
     }
     return splitStrings;
+}
+
+bool isBangCommand(string command) {
+    return regex_match(command, regex("(!)(.+)"));
+}
+
+bool isExit(string command) {
+    return (regex_match(command, regex("([[:space:]]*)(EXIT)([[:space:]]*)")) || command == "EXIT");
+}
+
+bool isChangeDirectory(string command) {
+    return (command == "cd");
+}
+
+bool isEnvVarAssignment(string command) {
+    return (regex_match(command, regex("(.+)(=)(.+)")));
+}
+
+bool isInputRedirection(string command) {
+    return (command  == "<");
+}
+
+bool isOutputRedirection(string command) {
+    return (command  == ">");
 }
 
 void printMessage(string msg, int type) {
