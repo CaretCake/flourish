@@ -56,7 +56,6 @@ int main(int argc, char *argv[]) {
                 strcpy(buf, command.c_str());
                 bool commandOK = true;
                 
-                // parse command and run the chosen previous command if it's a !bang command
                 if (isBangCommand(buf)) {
                     commandOK = bangCommandRegex(splitString('!', buf)[1], parsedInput, buf);
                 }
@@ -66,7 +65,6 @@ int main(int argc, char *argv[]) {
                     
                     parseInput(buf, parsedInput);
                     
-                    // Exit the program if input is "EXIT"
                     if (isExit(parsedInput[0])) {
                         exit(0);
                     }
@@ -74,11 +72,9 @@ int main(int argc, char *argv[]) {
                     // replace environment variables and tilde
                     replaceInput(parsedInput);
                     
-                    // change directory if it's a cd command
                     if (isChangeDirectory(parsedInput[0])) {
                         changeDirectory(parsedInput);
                     }
-                    // set environment variable if it's *=*
                     else if (isEnvVarAssignment(parsedInput[0])) {
                         setEnvironmentVariable(parsedInput, buf);
                     }
@@ -90,8 +86,8 @@ int main(int argc, char *argv[]) {
                                 break;
                             }
                             case 0: { // child
-                                if (parsedInput.size() >= 3) { // check size for possibility of file IO redirection
-                                    // check for file redirection
+                                // check size for possibility of file IO redirection
+                                if (parsedInput.size() >= 3) {
                                     for (int i = 1; i < parsedInput.size(); i++) {
                                         if (isOutputRedirection(parsedInput[i])) {
                                             fileIORedirection(parsedInput, i, '>');
@@ -130,6 +126,8 @@ int main(int argc, char *argv[]) {
     }
 }
 
+// Run on start up to display welcome message, set up catching CTRL+C,
+// and to set prompt environment variable to default.
 void startUp() {
     cout << WELCOME_MESSAGE << endl;
     signal(SIGINT, ctrlC);
@@ -142,6 +140,8 @@ void ctrlC(int s) {
     //cout << "ye" << endl;
 }
 
+// Parses input string (buf) from user and divides each chunk of the command
+// into parsedInput vector.
 void parseInput(string inputString, vector<string> &parsedInput) {
     istringstream istream (inputString);
     string inputChunk;
@@ -150,6 +150,7 @@ void parseInput(string inputString, vector<string> &parsedInput) {
     }
 }
 
+// Returns a boolean indicating if the !bangcommand was a valid command in readline history
 bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &buf) {
     // get history
     HISTORY_STATE *historyState = history_get_history_state ();
@@ -172,11 +173,9 @@ bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &bu
         }
     }
     else { // it's a ![character]
-        // for each in the list from back to begin
         for (int i = historyState->length - 1; i > 0; i--) {
             string line = historyList[i]->line;
             if (bangCommand == line.substr(0, bangCommand.length())) {
-                //change it
                 buf = historyList[i]->line;
                 cout << buf << endl;
                 return true;
@@ -189,18 +188,20 @@ bool bangCommandRegex(string bangCommand, vector<string> &parsedInput, char* &bu
     }
 }
 
+// Checks each entry in parsedInput for an environment variable or tilde and replaces
+// them as needed.
 void replaceInput(vector<string> &parsedInput) {
-    for (int i = 0; i < parsedInput.size(); i++) { // loop through all input chunks in command
-        if (parsedInput[i][0] == '$') { // if the first character is a $VARIABLE
-            parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1); // remove the $
-            if (getenv(parsedInput[i].c_str()) != NULL) { // check if the environment variable exists
-                parsedInput[i] = getenv(parsedInput[i].c_str()); // if so, replace input chunk with variable value
+    for (int i = 0; i < parsedInput.size(); i++) {
+        if (parsedInput[i][0] == '$') {
+            parsedInput[i] = parsedInput[i].substr(1, parsedInput[i].length() - 1);
+            if (getenv(parsedInput[i].c_str()) != NULL) {
+                parsedInput[i] = getenv(parsedInput[i].c_str());
             }
-            else { // if not erase input chunk from the command vector
+            else {
+                // if the environment variable does not exist, we just remove it from the command
                 parsedInput.erase(parsedInput.begin() + i);
             }
         }
-        // check for occurences of ~ and replace any found with home directory
         int tildeReplaceLocation = parsedInput[i].find("~");
         if (tildeReplaceLocation != string::npos) {
             parsedInput[i].erase(tildeReplaceLocation, 1);
@@ -246,6 +247,8 @@ void fileIORedirection(vector<string> &parsedInput, int index, char direction) {
     }
 }
 
+// Returns a vector of strings that are the contents of the target string
+// split on the given delimiter.
 vector<string> splitString(char delimiter, string target) {
     vector<string> splitStrings;
     istringstream istream(target);
